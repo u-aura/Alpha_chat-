@@ -1,20 +1,22 @@
-import { defineConfig, UserConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import path from 'path'
+import { defineConfig, UserConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+// Optional: Uncomment if you want to load .env automatically
+// import dotenv from 'dotenv';
+// dotenv.config();
 
-// Load environment variables
-const port = Number(process.env.PORT) || 3000
-const outDir = process.env.OUT_DIR || 'build'
-
-// Helper function to determine if we are in production
-const isProduction = process.env.NODE_ENV === 'production'
+// Load environment variables with fallbacks
+const port = Number(process.env.PORT) || 3000;
+const outDir = process.env.OUT_DIR || 'build';
+const nodeEnv = process.env.NODE_ENV || 'development';
+const isProduction = nodeEnv === 'production';
 
 // Plugins array for conditionally including plugins
-const plugins = [react()]
+const plugins = [react()];
 
 // Example: Add more plugins conditionally
 // if (isProduction) {
-//   plugins.push(someProductionOnlyPlugin());
+//   plugins.push(require('vite-plugin-some-production-plugin')());
 // }
 
 const config: UserConfig = {
@@ -22,15 +24,26 @@ const config: UserConfig = {
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
+      // Add more aliases as needed:
+      // '@components': path.resolve(__dirname, 'src/components'),
+      // '@utils': path.resolve(__dirname, 'src/utils'),
     },
   },
   server: {
     port,
     open: true,
+    allowedHosts: [
+      '2cj97c-3000.csb.app', // add any additional hosts as needed
+      // 'localhost',
+    ],
     // Example: configure proxy if needed
     // proxy: {
-    //   '/api': 'http://localhost:5000'
-    // }
+    //   '/api': {
+    //     target: 'http://localhost:5000',
+    //     changeOrigin: true,
+    //     secure: false,
+    //   },
+    // },
   },
   build: {
     outDir,
@@ -43,22 +56,19 @@ const config: UserConfig = {
         },
       },
     },
-    // Example: assets inline limit, customize as needed
     assetsInlineLimit: 4096,
-    // Example: Enable brotli compression if needed
-    // brotliSize: true,
-    // Example: Generate manifest file for integration with backend frameworks
-    // manifest: true,
+    brotliSize: true, // enable brotli compression
+    manifest: true,   // generate manifest file for backend integration
   },
-  // Example: Define global constants
   define: {
     __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+    __API_BASE_URL__: JSON.stringify(process.env.API_BASE_URL || ''),
   },
   // Example: Add JSON or SVG loader if needed
   // json: {
   //   namedExports: true,
   //   stringify: false
   // },
-}
+};
 
-export default defineConfig(config)
+export default defineConfig(config);
