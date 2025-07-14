@@ -1,0 +1,157 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { ArrowLeft, Phone, Video, Smile, Send, Mic, MoreVertical } from 'lucide-react';
+import { Chat, Message } from '../App';
+import MediaScreen from './MediaScreen';
+import CameraScreen from './CameraScreen';
+import ArchivedChatsScreen from './ArchivedChatsScreen';
+import GroupInfoPopup from './GroupInfoPopup';
+import GroupProfileScreen from './GroupProfileScreen';
+import MediaDocsLinksScreen from './MediaDocsLinksScreen';
+import LiveCameraScreen from './LiveCameraScreen';
+
+interface ChatScreenProps {
+  chat: Chat;
+  onBack: () => void;
+  onVideoCall: () => void;
+  onContactSelect: (contact: Chat) => void;
+}
+
+const ChatScreen: React.FC<ChatScreenProps> = ({ chat, onBack, onVideoCall, onContactSelect }) => {
+  const [message, setMessage] = useState('');
+  const [showOptions, setShowOptions] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [editMessageId, setEditMessageId] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
+  const [showStarred, setShowStarred] = useState(false);
+  const [showMediaScreen, setShowMediaScreen] = useState(false);
+  const [showCameraScreen, setShowCameraScreen] = useState(false);
+  const [showArchivedChats, setShowArchivedChats] = useState(false);
+  const [showGroupInfo, setShowGroupInfo] = useState(false);
+  const [showGroupProfile, setShowGroupProfile] = useState(false);
+  const [showMediaDocsLinks, setShowMediaDocsLinks] = useState(false);
+  const [showLiveCamera, setShowLiveCamera] = useState(false);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  useEffect(scrollToBottom, [messages]);
+
+  const handleSendMessage = () => {
+    if (message.trim()) {
+      if (editMessageId) {
+        setMessages(prev => prev.map(msg => msg.id === editMessageId ? { ...msg, text: message } : msg));
+        setEditMessageId(null);
+      } else {
+        const newMessage: Message = {
+          id: Date.now().toString(),
+          text: message,
+          timestamp: new Date(),
+          isOwn: true,
+          replyTo: replyTo || undefined
+        };
+        setMessages([...messages, newMessage]);
+      }
+      setMessage('');
+      setReplyTo(null);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => e.key === 'Enter' && handleSendMessage();
+
+  const togglePin = (id: string) => setMessages(prev => prev.map(msg => msg.id === id ? { ...msg, isPinned: !msg.isPinned } : msg));
+  const toggleStar = (id: string) => setMessages(prev => prev.map(msg => msg.id === id ? { ...msg, isStarred: !msg.isStarred } : msg));
+  const addReaction = (id: string) => {
+    const emoji = prompt('React with emoji (e.g. 😊, ❤️, 👍):');
+    if (emoji) setMessages(prev => prev.map(msg => msg.id === id ? { ...msg, reactions: [...(msg.reactions || []), emoji] } : msg));
+  };
+  const deleteMessage = (id: string) => confirm('Delete this message?') && setMessages(prev => prev.filter(msg => msg.id !== id));
+  const forwardMessage = (id: string) => {
+    const msg = messages.find(m => m.id === id);
+    if (msg) setMessage(msg.text);
+  };
+  const replyToMessage = (id: string) => setReplyTo(messages.find(m => m.id === id) || null);
+  const editMessage = (id: string) => {
+    const msg = messages.find(m => m.id === id);
+    if (msg) {
+      setMessage(msg.text);
+      setEditMessageId(id);
+    }
+  };
+
+  const toggleSelectMessage = (id: string) => {
+    setSelectedMessages(prev => prev.includes(id) ? prev.filter(mid => mid !== id) : [...prev, id]);
+  };
+
+  const deleteSelectedMessages = () => {
+    if (confirm(`Delete ${selectedMessages.length} messages?`)) {
+      setMessages(prev => prev.filter(msg => !selectedMessages.includes(msg.id)));
+      setSelectedMessages([]);
+    }
+  };
+
+  const forwardSelectedMessages = () => {
+    const texts = messages.filter(msg => selectedMessages.includes(msg.id)).map(msg => msg.text).join('\n');
+    setMessage(texts);
+    setSelectedMessages([]);
+  };
+
+  const starredMessages = messages.filter(msg => msg.isStarred);
+  const displayedMessages = showStarred ? starredMessages : messages;
+
+  if (showMediaScreen) return <MediaScreen onBack={() => setShowMediaScreen(false)} />;
+  if (showCameraScreen) return <CameraScreen onBack={() => setShowCameraScreen(false)} />;
+  if (showArchivedChats) return <ArchivedChatsScreen onBack={() => setShowArchivedChats(false)} />;
+  if (showGroupInfo) return <GroupInfoPopup onClose={() => setShowGroupInfo(false)} chat={chat} />;
+  if (showGroupProfile) return <GroupProfileScreen onBack={() => setShowGroupProfile(false)} chat={chat} />;
+  if (showMediaDocsLinks) return <MediaDocsLinksScreen onBack={() => setShowMediaDocsLinks(false)} />;
+  if (showLiveCamera) return <LiveCameraScreen onBack={() => setShowLiveCamera(false)} />;
+
+  return (
+    <div className="h-full bg-white flex flex-col relative" style={{ backgroundImage: 'url("/alpha-bg.png")', backgroundRepeat: 'repeat' }}>
+      <div className="flex justify-between items-center p-2 border-b bg-blue-50">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack}><ArrowLeft /></button>
+          <button onClick={() => setShowGroupProfile(true)} className="flex items-center space-x-3 hover:bg-gray-50 rounded-lg p-2 transition-colors">
+            <div className="relative">
+              <div className="w-10 h-10 rounded-full overflow-hidden">
+                <img src={chat.avatar} alt={chat.name} className="w-full h-full object-cover" />
+              </div>
+              {chat.isOnline && (
+                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+              )}
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-800">{chat.name}</h3>
+              <p className="text-xs text-green-500">Active now</p>
+            </div>
+          </button>
+        </div>
+        {selectedMessages.length > 0 ? (
+          <div className="flex gap-3">
+            <button onClick={() => selectedMessages.forEach(id => toggleStar(id))}>⭐</button>
+            <button onClick={() => selectedMessages.forEach(id => togglePin(id))}>📌</button>
+            <button onClick={forwardSelectedMessages}>➡️</button>
+            <button onClick={deleteSelectedMessages}>🗑️</button>
+          </div>
+        ) : (
+          <div className="flex gap-3">
+            <button onClick={() => setShowStarred(!showStarred)}>{showStarred ? '🔙 All' : '⭐ Starred'}</button>
+            <button onClick={onVideoCall}><Phone /></button>
+            <button onClick={onVideoCall}><Video /></button>
+            <button onClick={() => setShowMediaScreen(true)}>📁</button>
+            <button onClick={() => setShowCameraScreen(true)}>📷</button>
+            <button onClick={() => setShowMediaDocsLinks(true)}>📑</button>
+            <button onClick={() => setShowLiveCamera(true)}>🎥</button>
+            <button onClick={() => alert('📞 Call logs shown')}>📞</button>
+            <button onClick={() => setShowArchivedChats(true)}>🔄</button>
+            <button onClick={() => setShowGroupInfo(true)}>👥</button>
+          </div>
+        )}
+      </div>
+
+      {/* ...rest of component unchanged... */}
+    </div>
+  );
+};
+
+export default ChatScreen;
